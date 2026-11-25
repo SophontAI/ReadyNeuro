@@ -1,0 +1,35 @@
+# AABC native-from-raw phenotype eval (age bracket / sex, REST) -- the FROM-RAW half of the A/B.
+# Run with:  python -m readyneuro.builder.driver --config dataset_configs/aabc-native.yaml
+#
+# Built from the RAW unprocessed scanner-space REST series (104x104x72 @ 2 mm, TR 0.8 s, oblique
+# LAS) by the shared OpenNeuro from-raw kernel (N4 -> SynthSeg --robust -> SynthMorph rigid to
+# MNI152NLin2009cAsym -> mcflirt -> rigid EPI->T1 -> one composed resample). This deliberately DROPS
+# the vendor pipeline's susceptibility-distortion correction (topup), gradient-nonlinearity unwarp
+# and ICA-FIX cleanup; that gap vs the vendor MNINonLinear concatenation is what the native/mni
+# comparison measures. Needs FreeSurfer + FSL (mcflirt) + ANTs (N4) + FS_LICENSE.
+#
+# There is no raw structural distribution, so the T1 is the vendor `T1w_acpc_dc` (AC-PC and
+# gradient-distortion corrected, NOT bias-corrected). This arm is raw BOLD + vendor T1.
+dataset: aabc_native
+# subjects: omitted -> all eval subjects with a raw upload; n_sessions caps.
+spaces: [native]
+
+# Grid geometry and N4 are FIXED in the from-raw kernel (preprocess/openneuro.py:
+# T1_MM 1.0 / BOLD_MM 2.0 / N4_SHRINK 4 / TEMPLATE MNI152NLin2009cAsym), not config knobs.
+target_tr: 1.0        # temporal resample target (acquired at 0.8 s; the finalizer resamples up)
+# NO common_tr / window_frames: single-site (0.8 s), and the 500-raw-frame REST window is sliced
+# in-core -- all 478 frames of REST1_AP plus the first 22 of REST1_PA -> 400 frames after the
+# 0.8 -> 1.0 s resample. The same window as the vendor build.
+min_func_coverage: 0.60   # reject a run covering < 60% of the anatomical brain
+
+# --- I/O ---
+input_profile: r2                                    # raw REST and struct archives, one profile
+eval_root:   s3://<RESTRICTED_ROOT>/aabc-eval         # shared store: native + mni sit side by side
+out_profile: r2
+aabc_eval_split: <AABC_EVAL_SPLIT_JSON>   # REQUIRED local {sub: [split, visit]}; see discover/aabc.py eval_split_map
+# aabc_pheno_targets_root: s3://<EVAL_ROOT>/targets   # override the demographics mirror if it moves
+
+# --- driver execution ---
+results_dir: /data/build/aabc_native    # manifest cache (subjects.json) -- durable disk
+scratch:     /data/scratch/aabc_native  # struct archive + extracted raw runs (evicted per subject)
+workers:     1

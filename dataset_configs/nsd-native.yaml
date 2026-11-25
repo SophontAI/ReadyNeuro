@@ -1,0 +1,48 @@
+# NSD native-from-raw COCO-category eval -- the FROM-RAW half of the native/MNI A/B.
+# Run with:  python -m readyneuro.builder.driver --config dataset_configs/nsd-native.yaml
+#
+# Same from-raw kernel as every other native build (N4 -> SynthSeg -> SynthMorph rigid to
+# MNI152NLin2009cAsym -> mcflirt -> rigid EPI->T1 -> one composed resample), STREAMING each run onto
+# the 2 mm grid; the raw 1.6 s BOLD is resampled to the model's 1.0 s. Needs FreeSurfer + FSL
+# (mcflirt) + ANTs (N4). CPU only.
+#
+# RUN NUMBERING (silent-corruption trap). The COCO clip metadata's `run` indexes ALL functional runs
+# of a session, and NSD's later sessions open with a `task-rest` run -- so there the 12 nsdcore runs
+# are numbered 2..13. The raw BIDS numbers each TASK independently (`task-nsdcore_run-01..run-12`
+# always, rest in its own namespace). Interpolating the metadata `run` straight into a raw BIDS
+# filename therefore attaches each clip's labels to the NEXT acquisition in every rest-bearing
+# session. `discover` instead derives the index per (sub, ses) from the metadata itself,
+# `nsdcore_idx = run_num - min(run_num for that sub, ses) + 1`, and asserts at discovery that every
+# derived URI exists. It must NOT be keyed on `ses >= 21`: two subjects ran 35 sessions with rest
+# present only in 21..30, so their sessions 31..35 are offset 0 again and a flat rule would corrupt
+# those runs in the opposite direction. 74 of the 244 (sub, ses) pairs carry offset 1.
+#
+# The vendor `mni` arm (nsd-mni.yaml) is unaffected: its source reads the vendor timeseries, which
+# is the SAME all-runs namespace the metadata numbers in.
+dataset: nsd_native
+# subjects: omitted -> all 8 (list, e.g. ["subj01"]); n_subjects caps.
+spaces: [native]
+
+# Grid geometry and N4 are FIXED in the from-raw kernel (preprocess/openneuro.py:
+# T1_MM 1.0 / BOLD_MM 2.0 / N4_SHRINK 4 / TEMPLATE MNI152NLin2009cAsym), not config knobs.
+target_tr: 1.0   # model rate; the finalizer resamples the raw 1.6 s BOLD down to it. Single-site.
+# NO `eval_max_runs`: uncapped, all 2928 runs (subj01/02/07 420, subj04/05 360, subj03/06 324,
+# subj08 300). It MUST stay absent -- a cap changes the discovery signature AND silently shrinks the
+# benchmark; `eval_max_runs: 40` once cost ~9x the clips and read as a model regression.
+
+# --- I/O ---
+input_storage_options:
+  anon: true                                        # the public NSD bucket (raw BIDS), anonymous
+# Native-only: no mni deliverable is written here, and the mni arm has its own root (nsd-mni.yaml).
+eval_root:   s3://<RESTRICTED_ROOT>/nsd-cococlip-eval-native
+out_profile: r2
+
+# --- driver execution ---
+results_dir: /data/build/nsd_native
+scratch:     /data/scratch/nsd_native
+workers:     2    # a login-node invocation must not fork 16 cores; production passes
+                  # `--set workers=16` (measured on a 96-CPU node).
+stage_ahead: 1    # THE DISK BOUND, not a throughput knob. A run's preprocessed BOLD is an
+                  # uncompressed dense .nii on the 2 mm grid -- 4.33 MB/frame x 188 frames = 814 MB
+                  # -- and ALL of a subject's runs coexist until `finish`, so one 420-run subject
+                  # holds ~342 GB. The default (2 x workers) would try to hold 32 of them.

@@ -1,0 +1,31 @@
+# ABIDE native-from-raw eval (autism vs control, REST) -- the FROM-RAW half of the A/B.
+# Run with:  python -m readyneuro.builder.driver --config dataset_configs/abide-native.yaml
+#
+# Built from the RAW T1 + first REST BOLD on the public RawDataBIDS mirror (anon) by the shared
+# OpenNeuro from-raw kernel (N4 -> SynthSeg --robust -> SynthMorph rigid to MNI152NLin2009cAsym ->
+# mcflirt -> rigid EPI->T1 -> one composed resample). ABIDE-I is legacy single-echo EPI with NO
+# usable BOLD fieldmaps, so there is no distortion correction to lose against the fMRIPrep
+# derivative. Needs FreeSurfer + FSL (mcflirt) + ANTs (N4) + FS_LICENSE. CPU.
+dataset: abide_native
+# subjects: omitted -> all curated subjects (list to restrict); n_subjects caps.
+spaces: [native]
+
+# Grid geometry and N4 are FIXED in the from-raw kernel (preprocess/openneuro.py:
+# T1_MM 1.0 / BOLD_MM 2.0 / N4_SHRINK 4 / TEMPLATE MNI152NLin2009cAsym), not config knobs.
+target_tr:      1.0   # model rate
+min_func_coverage: 0.60  # reject a run covering < 60% of the anatomical brain
+common_tr:      3.0   # multi-site (1.5-3.0 s) -> low-pass to the corpus-slowest Nyquist
+window_seconds: 300
+window_frames:  300
+min_frames:     150
+
+# --- I/O ---
+input_storage_options:
+  anon: true                                    # the public raw BIDS mirror
+eval_root:   s3://<RESTRICTED_ROOT>/abide-eval
+out_profile: r2
+
+# --- driver execution ---
+results_dir: /data/build/abide_native
+scratch:     /data/scratch/abide_native
+workers:     1

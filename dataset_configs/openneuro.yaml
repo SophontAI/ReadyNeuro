@@ -1,0 +1,86 @@
+# OpenNeuro pretraining corpus, NATIVE space. Run with:
+#
+#   python -m readyneuro.builder.driver --config dataset_configs/openneuro.yaml
+#
+# `native` here means the T1->template registration is RIGID (rotation + translation only,
+# size-preserving): the anatomy stays the subject's own and is never nonlinearly warped to fill a
+# template. The rigid step plus the fixed MNI152NLin2009cAsym output grid only give every subject a
+# shared, consistently-oriented coordinate frame. An `mni` store means a nonlinear template warp,
+# which raw BIDS (no shipped warp) cannot produce.
+#
+# Needs FreeSurfer (mri_synthseg / mri_synthmorph / lta_convert / mri_convert / mri_mask), FSL
+# (mcflirt) and ANTs (N4BiasFieldCorrection) on PATH; nitransforms does the one-step compose +
+# resample, templateflow fetches the target grid. CPU, single-thread per subject.
+#
+# Batches: `openneuro_seed` fixes one shuffle of the sampling universe and `openneuro_batch` selects
+# a DISJOINT window of `n_subjects` from it. Point every batch at ONE `openneuro_index` so they
+# sample the same frozen archive listing. The shipped corpus is 32 batches (0..31) x 1000 = 32,000
+# draws from the 37,128 eligible accession-subject pairs.
+#
+# Public release: the 498 shards (484 training + 14 held-out; 290 h, 0.20 TB) from the 21 studies
+# since withdrawn from OpenNeuro are not in the public bucket. The paper's corpus has all 30,720;
+# s3://openneuro/v1/ serves the remaining 30,222 (817 of 838 accessions, 22,083 of 22,373 h of
+# stored training BOLD, 15.88 TB) under all 32 batch prefixes.
+dataset: openneuro
+spaces: [native]                    # rigid-to-template-orientation, size-preserving -> native anatomy
+
+# Grid geometry and N4 are FIXED in the from-raw kernel (preprocess/openneuro.py:
+# T1_MM 1.0 / BOLD_MM 2.0 / N4_SHRINK 4 / TEMPLATE MNI152NLin2009cAsym), not config knobs.
+target_tr: 1.0                      # the corpus's stored sampling rate (s/frame)
+
+# --- sampling ---
+openneuro_seed:  20260713        # master seed: the 32 batches are disjoint windows of ONE shuffle
+openneuro_batch: 0               # 0..31 -- override per batch (--set openneuro_batch=N)
+n_subjects:      1000            # subjects per batch
+# Cap a subject's BOLD runs. The archive's densely-sampled subjects are extreme (one ships 121 runs),
+# so one such subject would grind for hours and hold a whole batch open.
+max_runs_per_subject: 20
+# Drop runs shorter than this many RAW acquired frames, and any subject left with none -- so a
+# batch of N is N USABLE subjects. The archive ships degenerate acquisitions (~13 frames/run,
+# all-NaN per-voxel std) that cannot support a temporal objective. Filtered at SAMPLING via a ~8 KB ranged header read,
+# before any download.
+min_frames: 50
+# Geometry-side twin of `min_frames` + `filter_species`: drop a subject whose T1's smallest-axis FOV
+# extent (shape*zooms, off the same ~8 KB header read) is < this many mm -- an UNDECLARED non-human
+# (rodent ~15-25 mm, macaque ~60-80 mm) or a partial-brain slab. A whole human head spans >=~150 mm
+# per axis, so 100 mm clears humans while rejecting sub-head volumes BEFORE SynthSeg.
+min_fov_mm: 100
+# Reject a BOLD run whose fMRI covers < this fraction of the anatomical brain (usually a bad
+# registration); the finalizer warns and drops the run.
+min_func_coverage: 0.60
+# Drop DECLARED-non-human accessions (OpenNeuro's `metadata.species` GraphQL field); undeclared stay
+# (human by default). A one-time sweep at index build, frozen into `openneuro_index`.
+filter_species: true
+openneuro_index: /data/build/openneuro/openneuro_index.json  # SHARED across all 32 batches
+
+# --- I/O ---
+# Input: the s3://openneuro.org bucket is PUBLIC -> read ANONYMOUSLY (the default AWS credential
+# chain fails it with an AccessKey error). The read_timeout turns a stalled anon GET into a
+# retryable error rather than an infinite hang.
+input_storage_options:
+  anon: true
+  config_kwargs:
+    connect_timeout: 15
+    read_timeout:    60
+    retries: {max_attempts: 5, mode: standard}
+    # botocore defaults to 10 connections and fsspec caches ONE S3FileSystem per distinct
+    # storage_options, so every fetch thread shares that pool: `download_workers: 8` x
+    # `batch_workers: 6` = up to 48 concurrent GETs queued behind 10.
+    max_pool_connections: 64
+# A per-batch build must ALSO override this root, not just `openneuro_batch`. That key selects the
+# SUBJECT window only -- it does not change where shards land -- so running two batches from this
+# file unchanged merges them into one store. Batch 0 is the UNSUFFIXED root below; batches 1-31
+# used a `-bN` suffix matching their number:
+#     --set openneuro_batch=N --set pretrain_root=s3://openneuro/v1/openneuro-pretrain-shards-v6-bN
+# This default is the PUBLISHED, read-only release location. To rebuild, override it with your
+# own bucket and `out_profile` with a profile that can write there.
+pretrain_root: s3://openneuro/v1/openneuro-pretrain-shards-v6
+out_profile:   r2
+
+# --- driver execution ---
+results_dir:      /data/build/openneuro    # manifest cache (subjects.json) -- durable disk
+scratch:          /data/scratch/openneuro  # raw + BIDS + FSL work staging (evicted per subject)
+workers:     24                            # compute pool size (~5 GB/worker)
+stage_ahead: 48                            # subjects staged but unfinished -- the disk bound
+download_workers: 8                        # files fetched in parallel WITHIN one subject
+batch_workers:    6                        # subjects downloaded concurrently

@@ -1,0 +1,22 @@
+# HCP-YA vendor-MNI build (pretrain + Task21 eval) -- the VENDOR half of the native/MNI A/B.
+# Run with:  python -m readyneuro.builder.driver --config dataset_configs/hcp_ya-mni.yaml
+#
+# The vendor core (builder/discover/hcp_ya.py -> preprocess/hcp.py) builds ONLY `mni`: FNIRT to the FSL
+# MNI152NLin6Asym grid off the shipped MNI BOLD and the acpc->MNI warp. It writes into the same
+# roots as the from-raw native arm (hcp_ya-native.yaml), one store per space.
+dataset: hcp_ya
+spaces: [mni]
+
+target_tr: 1.0
+
+# --- I/O ---
+input_storage_options:
+  profile: hcp
+pretrain_root: s3://<RESTRICTED_ROOT>/hcp-ya-pretrain-shards-v6-native
+eval_root:     s3://<RESTRICTED_ROOT>/hcp-ya-task21-eval
+out_profile:   r2
+
+# --- driver execution ---
+results_dir: /data/build/hcp_ya_mni
+scratch:     /data/scratch/hcp_ya_mni
+workers:     1

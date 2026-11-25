@@ -1,0 +1,77 @@
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[tool.hatch.metadata]
+# The `eval` extra pins Brainmarks by git commit.
+allow-direct-references = true
+
+[tool.hatch.build.targets.wheel]
+# `readyneuro` is this repo's package. `src/brainmarks` is a PEP 420 namespace contribution: it adds
+# the evaluation datasets to Brainmarks' plugin scanner without modifying that package. It must
+# carry NO __init__.py at any level, or the scanner finds zero datasets.
+packages = ["src/readyneuro", "src/brainmarks"]
+
+[project]
+name = "readyneuro"
+version = "0.1.0"
+description = "Native-space fMRI pretraining-corpus and evaluation-store build pipeline, with Brainmarks loaders for the stores"
+readme = "README.md"
+license = "MIT"
+license-files = ["LICENSE"]
+requires-python = ">=3.14"
+authors = [
+    { name = "Xujin Chris Liu" },
+    { name = "Connor Lane" },
+    { name = "Hassan Muhammad" },
+    { name = "Tanishq Abraham" },
+    { name = "Paul Scotti" },
+]
+maintainers = [{ name = "Sophont AI", email = "paul@sophont.med" }]
+dependencies = [
+    "datasets>=4.8.5",
+    "fsspec>=2024.6.1",
+    "nibabel>=5.4.2",
+    "nitransforms>=25.1.0",
+    "numpy>=2.4.6",
+    "pandas>=2.2",
+    "pyarrow>=16.0",
+    "pyyaml>=6.0",
+    "s3fs>=2024.6.1",
+    "scipy>=1.17.1",
+]
+
+[project.optional-dependencies]
+# The preprocessing cores fetch the MNI152NLin2009cAsym grid through templateflow. The CLI tools
+# they drive (FreeSurfer, FSL, ANTs) are external binaries on PATH, not python packages.
+build = ["templateflow>=24.2"]
+# Reading the evaluation stores through Brainmarks. `src/brainmarks/datasets/*` registers into
+# Brainmarks' plugin scanner and subclasses torch's Dataset; neither is needed to BUILD a store.
+eval = [
+    "brainmarks @ git+https://github.com/Aceticia/Brainmarks@d4640074168f1c6dcb0a94ec78801577792be3f4",
+    "torch>=2.11.0,<2.12",
+]
+test = ["pytest>=9.0.3"]
+
+[project.urls]
+Repository = "https://github.com/SophontAI/ReadyNeuro"
+
+# The paper's evaluations used the CUDA 12.8 build of torch 2.11.0 (PyPI's Linux wheels are CUDA 13).
+[[tool.uv.index]]
+name = "pytorch-cu128"
+url = "https://download.pytorch.org/whl/cu128"
+explicit = true
+
+[tool.uv.sources]
+torch = [{ index = "pytorch-cu128", marker = "sys_platform == 'linux'" }]
+
+[tool.uv]
+# peft (via brainmarks) leaves transformers unbounded; without a floor uv backtracks to
+# transformers 4.12 / tokenizers 0.10, which has no Python 3.14 wheel and fails to build.
+constraint-dependencies = ["transformers>=4.46"]
+
+[tool.ruff]
+line-length = 110
+
+[tool.ruff.lint]
+ignore = ["F722"]

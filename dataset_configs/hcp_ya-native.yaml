@@ -1,0 +1,32 @@
+# HCP-YA native-from-raw build (pretrain + Task21 eval) -- the FROM-RAW half of the native/MNI A/B.
+# Run with:  python -m readyneuro.builder.driver --config dataset_configs/hcp_ya-native.yaml
+#
+# Built from the RAW unprocessed T1w (T1w_MPR1) + BOLD (unprocessed/3T) on the registration-gated
+# HCP bucket by the shared OpenNeuro from-raw kernel -- NO vendor `_restore` T1, NO shipped MNI BOLD,
+# NO FNIRT. This deliberately DROPS the HCP minimal pipeline's susceptibility-distortion correction
+# (topup) and gradient-nonlinearity unwarp; that gap vs the vendor product is exactly what the
+# native(from-raw) vs mni(vendor) comparison measures. Lands on the same 2009c-rigid grid as every
+# other native build. Needs FreeSurfer + FSL (mcflirt) + ANTs (N4) + FS_LICENSE. CPU.
+#
+# Raw BOLD runs are ~1 GB each and a subject has up to ~18; a smoke MUST restrict `subjects`+`runs`.
+dataset: hcp_ya_native
+# subjects: omitted -> all Brainmarks-split subjects (list to restrict, e.g. ["<HCP_SUBJECT_ID>"]).
+spaces: [native]
+# runs: omitted -> all 3T runs. List to restrict (e.g. the 6 Task21 LR runs) for a smoke.
+
+# Grid geometry and N4 are FIXED in the from-raw kernel (preprocess/openneuro.py:
+# T1_MM 1.0 / BOLD_MM 2.0 / N4_SHRINK 4 / TEMPLATE MNI152NLin2009cAsym), not config knobs.
+target_tr: 1.0                 # temporal resample target (HCP acquires at 0.72 s)
+min_func_coverage: 0.60        # reject a run covering < 60% of the anatomical brain
+
+# --- I/O ---
+input_storage_options:
+  profile: hcp                 # the registration-gated HCP bucket (unprocessed/3T + derivatives)
+pretrain_root: s3://<RESTRICTED_ROOT>/hcp-ya-pretrain-shards-v6-native
+eval_root:     s3://<RESTRICTED_ROOT>/hcp-ya-task21-eval
+out_profile:   r2
+
+# --- driver execution ---
+results_dir: /data/build/hcp_ya_native
+scratch:     /data/scratch/hcp_ya_native
+workers:     1

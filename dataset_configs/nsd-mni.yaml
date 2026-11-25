@@ -1,0 +1,23 @@
+# NSD vendor-MNI COCO-category eval -- the VENDOR half of the native/MNI A/B, and the store the
+# paper's main analysis reads.
+# Run with:  python -m readyneuro.builder.driver --config dataset_configs/nsd-mni.yaml
+#
+# The vendor core (builder/discover/nsd.py -> preprocess/nsd.py) builds ONLY `mni`: NSD's own func1pt0->MNI
+# coordinate warp onto the FSL MNI152NLin6Asym grid, from the func1mm timeseries. Needs FreeSurfer.
+dataset: nsd
+# subjects: omitted -> all; n_subjects caps.
+spaces: [mni]
+
+target_tr: 1.0   # the NSD func1mm timeseries are already 1.0 s (the resample is a no-op).
+# NO `eval_max_runs`: uncapped, matching nsd-native.yaml so both arms cover the same runs/clips.
+
+# --- I/O ---
+input_storage_options:
+  anon: true
+eval_root:   s3://<RESTRICTED_ROOT>/nsd-cococlip-eval-mni
+out_profile: r2
+
+# --- driver execution ---
+results_dir: /data/build/nsd_mni
+scratch:     /data/scratch/nsd_mni
+workers:     2

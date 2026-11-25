@@ -1,0 +1,23 @@
+# ABIDE vendor-MNI eval -- the VENDOR half of the A/B, and the store the paper's main analysis reads.
+# Run with:  python -m readyneuro.builder.driver --config dataset_configs/abide-mni.yaml
+#
+# The vendor core (builder/discover/abide.py -> preprocess/fmriprep_dx.py) builds ONLY `mni` (fMRIPrep FSL
+# MNI152NLin6Asym), into the same eval_root as the from-raw native (abide-native.yaml).
+dataset: abide
+spaces: [mni]
+
+target_tr:      1.0
+common_tr:      3.0
+window_seconds: 300
+window_frames:  300
+min_frames:     150
+
+# --- I/O ---
+input_profile: r2                                # the fMRIPrep derivatives bucket
+eval_root:     s3://<RESTRICTED_ROOT>/abide-eval  # SHARED store (mni beside the from-raw native)
+out_profile:   r2
+
+# --- driver execution ---
+results_dir: /data/build/abide_mni
+scratch:     /data/scratch/abide_mni
+workers:     1

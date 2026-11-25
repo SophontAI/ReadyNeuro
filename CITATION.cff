@@ -1,0 +1,73 @@
+cff-version: 1.2.0
+message: "If you use this software or the ReadyNeuro corpus, please cite the paper below."
+type: software
+title: "ReadyNeuro"
+abstract: >-
+  Corpus-building and evaluation-data code for scaling fMRI foundation models
+  with native-space data from heterogeneous public studies.
+authors:
+  - given-names: Xujin Chris
+    family-names: Liu
+    affiliation: New York University
+  - given-names: Connor
+    family-names: Lane
+    affiliation: Sophont AI
+  - given-names: Hassan
+    family-names: Muhammad
+    affiliation: Sophont AI
+  - given-names: Tanishq Mathew
+    family-names: Abraham
+    affiliation: Sophont AI
+  - given-names: Paul Steven
+    family-names: Scotti
+    affiliation: Sophont AI
+contact:
+  - name: Sophont AI
+    email: paul@sophont.med
+repository-code: "https://github.com/SophontAI/ReadyNeuro"
+license: MIT
+references:
+  - type: data
+    title: "ReadyNeuro: native-space OpenNeuro fMRI pretraining corpus"
+    authors:
+      - given-names: Xujin Chris
+        family-names: Liu
+        affiliation: New York University
+      - given-names: Connor
+        family-names: Lane
+        affiliation: Sophont AI
+      - given-names: Hassan
+        family-names: Muhammad
+        affiliation: Sophont AI
+      - given-names: Tanishq Mathew
+        family-names: Abraham
+        affiliation: Sophont AI
+      - given-names: Paul Steven
+        family-names: Scotti
+        affiliation: Sophont AI
+    license: CC0-1.0
+    year: 2026
+preferred-citation:
+  type: conference-paper
+  title: "Scaling fMRI Foundation Models with Native-Space Data from Heterogeneous Public Studies"
+  authors:
+    - given-names: Xujin Chris
+      family-names: Liu
+      affiliation: New York University
+    - given-names: Connor
+      family-names: Lane
+      affiliation: Sophont AI
+    - given-names: Hassan
+      family-names: Muhammad
+      affiliation: Sophont AI
+    - given-names: Tanishq Mathew
+      family-names: Abraham
+      affiliation: Sophont AI
+    - given-names: Paul Steven
+      family-names: Scotti
+      affiliation: Sophont AI
+  collection-title: "NeurIPS 2026 Workshop on Foundation Models for the Brain and Body"
+  conference:
+    name: "NeurIPS 2026 Workshop on Foundation Models for the Brain and Body"
+  year: 2026
+  url: "https://openreview.net/forum?id=rLMKAJCLc1"

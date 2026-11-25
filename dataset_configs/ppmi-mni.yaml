@@ -1,0 +1,27 @@
+# PPMI vendor-MNI eval (Parkinson's vs prodromal, REST) -- the VENDOR half of the A/B, and the store
+# the paper's main analysis reads.
+# Run with:  python -m readyneuro.builder.driver --config dataset_configs/ppmi-mni.yaml
+#
+# Builds ONLY `mni`: the fMRIPrep FSL MNI152NLin6Asym derivative, into the SAME eval_root as the
+# from-raw `native` that ppmi-native.yaml writes there. Those two configs together make one complete
+# store; neither is sufficient alone, and the from-raw kernel cannot produce `mni` at all
+# (preprocess/openneuro.py hardcodes SPACE = "native"; raw BIDS ships no template warp).
+# Needs FreeSurfer + FS_LICENSE.
+dataset: ppmi           # the vendor core (builder/discover/ppmi.py -> preprocess/fmriprep_dx.py)
+spaces: [mni]
+
+target_tr:      1.0
+common_tr:      3.0
+window_seconds: 300
+window_frames:  300
+min_frames:     150
+
+# --- I/O ---
+input_profile: r2
+eval_root:     s3://<RESTRICTED_ROOT>/ppmi-eval   # SHARED store (mni beside the from-raw native)
+out_profile:   r2
+
+# --- driver execution ---
+results_dir: /data/build/ppmi_mni
+scratch:     /data/scratch/ppmi_mni
+workers:     1

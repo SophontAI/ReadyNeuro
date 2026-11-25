@@ -1,0 +1,25 @@
+# AABC vendor-MNI phenotype eval (age bracket / sex, REST) -- the VENDOR half of the A/B, and the
+# store the paper's main analysis reads.
+# Run with:  python -m readyneuro.builder.driver --config dataset_configs/aabc-mni.yaml
+#
+# Builds ONLY `mni`: the vendor's shipped FNIRT MNINonLinear ICA-FIX-cleaned rest concatenation,
+# into the same eval_root as the from-raw native arm (aabc-native.yaml). Same window on both sides:
+# the vendor core slices fMRI_CONCAT_ALL[0:500], the from-raw core rebuilds those same 500 frames
+# out of REST1_AP + REST1_PA. Needs FreeSurfer + FS_LICENSE.
+dataset: aabc          # the vendor core (builder/discover/aabc.py -> preprocess/aabc_vendor.py)
+spaces: [mni]
+
+target_tr: 1.0        # temporal resample target (the concat is acquired at 0.8 s -> 400 frames)
+# NO common_tr / window_frames: single-site, and the 500-TR REST window is sliced in-core.
+
+# --- I/O ---
+input_profile: r2
+eval_root:   s3://<RESTRICTED_ROOT>/aabc-eval   # SHARED store (mni sits beside the from-raw native)
+out_profile: r2
+aabc_eval_split: <AABC_EVAL_SPLIT_JSON>   # REQUIRED local {sub: [split, visit]}; see discover/aabc.py eval_split_map
+# aabc_pheno_targets_root: s3://<EVAL_ROOT>/targets
+
+# --- driver execution ---
+results_dir: /data/build/aabc_mni
+scratch:     /data/scratch/aabc_mni
+workers:     1
