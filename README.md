@@ -6,6 +6,7 @@ shared 2 mm MNI152NLin2009cAsym grid. This repository builds the corpus and the 
 and provides the evaluation data loaders.
 
 - Paper: <https://openreview.net/forum?id=rLMKAJCLc1>
+- Blog post: <https://sophont.med/blog/native-fmri/>
 - Corpus: `s3://openneuro/v1/` ([access](#get-the-data)); a 500 GB subset is at
   [medarc/ReadyNeuro](https://huggingface.co/datasets/medarc/ReadyNeuro)
 - Model code: <https://github.com/SophontAI/CortexMAE-ReadyNeuro>
@@ -24,7 +25,9 @@ aws --profile openneuro-public s3 ls s3://openneuro/v1/
 aws --profile openneuro-public s3 sync s3://openneuro/v1/openneuro-pretrain-shards-v6-b31/ ./openneuro-v1/openneuro-pretrain-shards-v6-b31/   # one batch
 ```
 
-Each shard has a zero-byte `<shard>.tar.done` marker; add `--exclude '*.done'` to skip them.
+Batch `b0` is the prefix `openneuro-pretrain-shards-v6/`, and batches `b1`-`b31` are
+`openneuro-pretrain-shards-v6-b<N>/`; shards sit under `<prefix>/train/native/`. Each shard has a
+zero-byte `<shard>.tar.done` marker; add `--exclude '*.done'` to skip them.
 Training reads the bucket through this profile (`export AWS_PROFILE=openneuro-public`). Unset it
 before running builds, which read public AWS buckets.
 
@@ -57,8 +60,9 @@ The `eval` extra installs [Brainmarks](https://github.com/MedARC-AI/Brainmarks) 
 ```sh
 git clone https://github.com/SophontAI/ReadyNeuro.git
 cd ReadyNeuro
-pip install -e '.[eval]'            # evaluation data loaders (Python 3.14)
-# or, for the offline tests in a uv-managed venv:
+pip install -e '.[eval,test]'       # evaluation data loaders (Python 3.14)
+pytest tests/                       # offline tests
+# or, in a uv-managed venv:
 uv run --extra test pytest tests/
 ```
 
