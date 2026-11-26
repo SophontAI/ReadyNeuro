@@ -68,6 +68,9 @@ for sample in wds.WebDataset(url, shardshuffle=False):
 The bundle also has `bold_gm`, `bold_seg` (SynthSeg labels) and their `t1_*` counterparts. Each
 run has `mean.npy` and `std.npy` (multiply by `mean_scale`/`std_scale`), which undo the z-score.
 The full format is in [`tools/codec.py`](src/readyneuro/tools/codec.py).
+To cut patches for a model without building the dense volume, see
+[Tokenize without densifying](https://github.com/SophontAI/CortexMAE-ReadyNeuro#tokenize-without-densifying)
+in the model repository.
 
 ## What is released
 
