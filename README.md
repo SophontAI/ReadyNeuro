@@ -31,6 +31,44 @@ zero-byte `<shard>.tar.done` marker; add `--exclude '*.done'` to skip them.
 Training reads the bucket through this profile (`export AWS_PROFILE=openneuro-public`). Unset it
 before running builds, which read public AWS buckets.
 
+## Stream samples
+
+Each shard is one subject. Its first sample holds the T1, the tissue masks and the grid
+geometry. Every later sample is one BOLD run. Voxels are stored packed: `*_idx.npy` holds flat
+C-order indices of the in-brain voxels, and `*_values.npy` holds one row per index. BOLD is
+z-scored per voxel within the run, stored as int8 at one frame per second. This reads T1 and BOLD
+with `pip install webdataset numpy`:
+
+```python
+import io, json
+import numpy as np
+import webdataset as wds
+
+def dense(idx, values, shape):
+    """Scatter packed in-brain rows back onto the grid."""
+    out = np.zeros((np.prod(shape), *values.shape[1:]), np.float32)
+    out[idx] = values
+    return out.reshape(*shape, *values.shape[1:])
+
+url = "https://huggingface.co/datasets/medarc/ReadyNeuro/resolve/main/shards/ds003777__02.tar"
+# Full corpus: "pipe:aws --profile openneuro-public s3 cp s3://openneuro/v1/<prefix>/train/native/<shard>.tar -"
+for sample in wds.WebDataset(url, shardshuffle=False):
+    meta = json.loads(sample["json"])
+    arr = lambda name: np.load(io.BytesIO(sample[name]))
+    if meta["kind"] == "bundle":  # first sample of each shard: T1, masks, geometry
+        bold_idx, bold_shape = arr("bold_idx.npy"), meta["bold_shape"]
+        bold_affine = arr("bold_affine.npy")  # voxel -> world mm
+        cortex = dense(bold_idx, arr("bold_cortical_gm.npy"), bold_shape)  # (97, 115, 97)
+        t1 = dense(arr("t1_idx.npy"), arr("t1_values.npy") * meta["T1_scale"], meta["T1_shape"])
+    else:  # one sample per run: z-scored BOLD
+        z = arr("values.npy") * np.float32(meta["scale"])  # (in-brain voxels, frames)
+        clip = dense(bold_idx, z[:, :16], bold_shape)  # first 16 s as (97, 115, 97, 16)
+```
+
+The bundle also has `bold_gm`, `bold_seg` (SynthSeg labels) and their `t1_*` counterparts. Each
+run has `mean.npy` and `std.npy` (multiply by `mean_scale`/`std_scale`), which undo the z-score.
+The full format is in [`tools/codec.py`](src/readyneuro/tools/codec.py).
+
 ## What is released
 
 - **Corpus:** 30,222 shards, 29,256 for training (`b0`-`b30`) and 966 held out (`b31`). The
