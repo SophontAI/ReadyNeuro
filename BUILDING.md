@@ -20,10 +20,11 @@ read-only key that a setup script installs as an AWS profile. With AWS CLI v2.13
 curl -fsS https://openneuro.sophont.med/clients/aws-setup.sh -o openneuro-aws-setup.sh
 sh openneuro-aws-setup.sh
 aws --profile openneuro-public s3 ls s3://openneuro/v1/     # 32 batch prefixes
-aws --profile openneuro-public s3 sync s3://openneuro/v1/openneuro-pretrain-shards-v6-b31/ ./openneuro-v1/openneuro-pretrain-shards-v6-b31/   # one batch
+aws --profile openneuro-public s3 cp s3://openneuro/v1/openneuro-pretrain-shards-v6-b1/train/native/ds004604__022.tar .   # one subject, 77 MB
 ```
 
-Each shard has a zero-byte `<shard>.tar.done` marker beside it; add `--exclude '*.done'` to skip
+Each batch is about 0.5 TB, and `b31` is the validation holdout; `s3 sync` a prefix to download
+a whole batch. Each shard has a zero-byte `<shard>.tar.done` marker beside it; add `--exclude '*.done'` to skip
 them.
 
 The `openneuro-public` profile carries the key, the R2 endpoint and region `auto`. To train,

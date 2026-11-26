@@ -22,11 +22,12 @@ v2.13 or later):
 curl -fsS https://openneuro.sophont.med/clients/aws-setup.sh -o openneuro-aws-setup.sh
 sh openneuro-aws-setup.sh
 aws --profile openneuro-public s3 ls s3://openneuro/v1/
-aws --profile openneuro-public s3 sync s3://openneuro/v1/openneuro-pretrain-shards-v6-b31/ ./openneuro-v1/openneuro-pretrain-shards-v6-b31/   # one batch
+aws --profile openneuro-public s3 cp s3://openneuro/v1/openneuro-pretrain-shards-v6-b1/train/native/ds004604__022.tar .   # one subject, 77 MB
 ```
 
 Batch `b0` is the prefix `openneuro-pretrain-shards-v6/`, and batches `b1`-`b31` are
-`openneuro-pretrain-shards-v6-b<N>/`; shards sit under `<prefix>/train/native/`. Each shard has a
+`openneuro-pretrain-shards-v6-b<N>/`; shards sit under `<prefix>/train/native/`. Each batch is
+about 0.5 TB, and `b31` is the validation holdout. Each shard has a
 zero-byte `<shard>.tar.done` marker; add `--exclude '*.done'` to skip them.
 Training reads the bucket through this profile (`export AWS_PROFILE=openneuro-public`). Unset it
 before running builds, which read public AWS buckets.
@@ -50,8 +51,8 @@ def dense(idx, values, shape):
     out[idx] = values
     return out.reshape(*shape, *values.shape[1:])
 
-url = "https://huggingface.co/datasets/medarc/ReadyNeuro/resolve/main/shards/ds003777__02.tar"
-# Full corpus: "pipe:aws --profile openneuro-public s3 cp s3://openneuro/v1/<prefix>/train/native/<shard>.tar -"
+url = "https://huggingface.co/datasets/medarc/ReadyNeuro/resolve/main/shards/ds004604__022.tar"
+# Same shard from the full corpus: "pipe:aws --profile openneuro-public s3 cp s3://openneuro/v1/openneuro-pretrain-shards-v6-b1/train/native/ds004604__022.tar -"
 for sample in wds.WebDataset(url, shardshuffle=False):
     meta = json.loads(sample["json"])
     arr = lambda name: np.load(io.BytesIO(sample[name]))
@@ -67,6 +68,8 @@ for sample in wds.WebDataset(url, shardshuffle=False):
 
 The bundle also has `bold_gm`, `bold_seg` (SynthSeg labels) and their `t1_*` counterparts. Each
 run has `mean.npy` and `std.npy` (multiply by `mean_scale`/`std_scale`), which undo the z-score.
+To find a shard on S3, look up its `batch` in [`openneuro_rebuild_manifest.jsonl.gz`](manifests/openneuro_rebuild_manifest.jsonl.gz):
+`b0` is the prefix `openneuro-pretrain-shards-v6/`, and `b<N>` is `openneuro-pretrain-shards-v6-b<N>/`.
 The full format is in [`tools/codec.py`](src/readyneuro/tools/codec.py).
 To cut patches for a model without building the dense volume, see
 [Tokenize without densifying](https://github.com/SophontAI/CortexMAE-ReadyNeuro#tokenize-without-densifying)
